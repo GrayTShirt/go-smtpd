@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"sync"
 )
 
 var (
@@ -34,6 +35,8 @@ type Server struct {
 	WriteTimeout time.Duration // optional write timeout
 
 	PlainAuth bool // advertise plain auth (assumes you're on SSL)
+
+	WaitGroup    *sync.WaitGroup
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
@@ -103,15 +106,19 @@ func (srv *Server) hostname() string {
 // calls Serve to handle requests on incoming connections.  If
 // srv.Addr is blank, ":25" is used.
 func (srv *Server) ListenAndServe() error {
-	addr := srv.Addr
-	if addr == "" {
-		addr = ":25"
-	}
-	ln, e := net.Listen("tcp", addr)
+	ln, e := srv.Listen()
 	if e != nil {
 		return e
 	}
 	return srv.Serve(ln)
+}
+
+func (srv *Server) Listen() (net.Listener, error) {
+	addr := srv.Addr
+	if addr == "" {
+		addr = ":25"
+	}
+	return net.Listen("tcp", addr)
 }
 
 func (srv *Server) Serve(ln net.Listener) error {
@@ -185,7 +192,15 @@ func (s *session) Addr() net.Addr {
 }
 
 func (s *session) serve() {
-	defer s.rwc.Close()
+	defer func() {
+		s.rwc.Close()
+		if s.srv.WorkGroup != nil {
+			s.srv.WorkGroup.Done()
+		}
+	}()
+	if s.srv.WorkGroup != nil {
+		s.srv.WorkGroup.Add(1)
+	}
 	if onc := s.srv.OnNewConnection; onc != nil {
 		if err := onc(s); err != nil {
 			s.sendSMTPErrorOrLinef(err, "554 connection rejected")
