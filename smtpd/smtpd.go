@@ -194,12 +194,12 @@ func (s *session) Addr() net.Addr {
 func (s *session) serve() {
 	defer func() {
 		s.rwc.Close()
-		if s.srv.WorkGroup != nil {
-			s.srv.WorkGroup.Done()
+		if s.srv.WaitGroup != nil {
+			s.srv.WaitGroup.Done()
 		}
 	}()
-	if s.srv.WorkGroup != nil {
-		s.srv.WorkGroup.Add(1)
+	if s.srv.WaitGroup != nil {
+		s.srv.WaitGroup.Add(1)
 	}
 	if onc := s.srv.OnNewConnection; onc != nil {
 		if err := onc(s); err != nil {
