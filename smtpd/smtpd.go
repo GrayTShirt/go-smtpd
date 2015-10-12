@@ -15,14 +15,14 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
-	"sync"
 )
 
 var (
-	rcptToRE   = regexp.MustCompile(`[Tt][Oo]:<(.+)>`)
-	mailFromRE = regexp.MustCompile(`[Ff][Rr][Oo][Mm]:<(.*)>`)
+	rcptToRE   = regexp.MustCompile(`[Tt][Oo]:\s*<(.+)>`)
+	mailFromRE = regexp.MustCompile(`[Ff][Rr][Oo][Mm]:\s*<(.*)>`)
 )
 
 // Server is an SMTP server.
@@ -34,7 +34,7 @@ type Server struct {
 
 	PlainAuth bool // advertise plain auth (assumes you're on SSL)
 
-	WaitGroup    *sync.WaitGroup
+	WaitGroup *sync.WaitGroup
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
